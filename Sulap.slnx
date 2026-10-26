@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Sulap.App/Sulap.App.csproj" />
+    <Project Path="src/Sulap.Cli/Sulap.Cli.csproj" />
+    <Project Path="src/Sulap.Core/Sulap.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Sulap.Core.Tests/Sulap.Core.Tests.csproj" />
+  </Folder>
+</Solution>

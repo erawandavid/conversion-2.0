@@ -1,0 +1,20 @@
+<Window x:Class="Sulap.App.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        ThemeMode="System"
+        Width="460"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Segoe UI Variable Text, Segoe UI">
+  <StackPanel Margin="24,20,24,24">
+    <TextBlock FontFamily="Segoe UI Variable Display, Segoe UI" FontSize="22" FontWeight="SemiBold" Text="Settings" />
+    <TextBlock Margin="0,12,0,0" TextWrapping="Wrap"
+               Text="The settings screen arrives in a later version. Until then, settings live in this file:" />
+    <TextBox x:Name="PathBox" Margin="0,8,0,0" IsReadOnly="True" />
+    <StackPanel Margin="0,20,0,0" HorizontalAlignment="Right" Orientation="Horizontal">
+      <Button MinWidth="88" Content="Show in File Explorer" Click="OnShowFileClick" />
+      <Button Margin="8,0,0,0" MinWidth="88" Content="Close" IsCancel="True" IsDefault="True" Click="OnCloseClick" />
+    </StackPanel>
+  </StackPanel>
+</Window>

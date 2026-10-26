@@ -1,0 +1,18 @@
+<Window x:Class="Sulap.App.Views.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        ThemeMode="System"
+        Width="380"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Segoe UI Variable Text, Segoe UI">
+  <StackPanel Margin="24,20,24,24">
+    <TextBlock x:Name="NameText" FontFamily="Segoe UI Variable Display, Segoe UI" FontSize="22" FontWeight="SemiBold" />
+    <TextBlock x:Name="VersionText" Margin="0,2,0,0" Opacity="0.7" />
+    <TextBlock x:Name="SummaryText" Margin="0,16,0,0" TextWrapping="Wrap" />
+    <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Text="Everything runs on this device: no network calls, no analytics." />
+    <TextBlock Margin="0,8,0,0" Opacity="0.7" Text="MIT License" />
+    <Button Margin="0,20,0,0" MinWidth="88" HorizontalAlignment="Right" Content="Close" IsCancel="True" IsDefault="True" Click="OnCloseClick" />
+  </StackPanel>
+</Window>

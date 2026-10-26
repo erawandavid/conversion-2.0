@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>$(AppName.ToLowerInvariant())</AssemblyName>
+    <RootNamespace>Sulap.Cli</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sulap.Core\Sulap.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,100 @@
+name: CI
+
+# Builds, tests, and uploads artifacts. This workflow must never commit, push, tag, or release.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+
+jobs:
+  windows:
+    name: Build and test (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Read the app name
+        id: app
+        run: |
+          function Get-Property($name) { (dotnet msbuild src/Sulap.App/Sulap.App.csproj "-getProperty:$name" | Select-Object -Last 1).Trim() }
+          $name = Get-Property AppName
+          $debugDir = Get-Property TargetDir
+          "name=$name" >> $env:GITHUB_OUTPUT
+          "debug-exe=$(Join-Path $debugDir "$name.exe")" >> $env:GITHUB_OUTPUT
+
+      - name: Build
+        run: dotnet build Sulap.slnx
+
+      - name: Test
+        run: dotnet test --no-build
+
+      - name: Render UI snapshots
+        timeout-minutes: 5
+        run: |
+          $out = Join-Path $PWD 'artifacts/ui'
+          $process = Start-Process -FilePath '${{ steps.app.outputs.debug-exe }}' -ArgumentList '--render-ui', $out -PassThru -Wait
+          if ($process.ExitCode -ne 0) {
+            Get-Content (Join-Path $out 'render-error.txt') -ErrorAction SilentlyContinue
+            throw "Rendering failed with exit code $($process.ExitCode)"
+          }
+          Get-ChildItem $out | Format-Table Name, Length
+
+      - name: Publish (win-x64, self-contained single file)
+        run: >
+          dotnet publish src/Sulap.App/Sulap.App.csproj -c Release -r win-x64 --self-contained
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true -p:DebugType=embedded
+          -o artifacts/publish/win-x64
+
+      - name: Smoke test (start, stay running, stop)
+        timeout-minutes: 5
+        run: |
+          $name = '${{ steps.app.outputs.name }}'
+          $process = Start-Process -FilePath "artifacts/publish/win-x64/$name.exe" -PassThru
+          Start-Sleep -Seconds 8
+          if ($process.HasExited) { throw "$name.exe exited early with code $($process.ExitCode)" }
+          Stop-Process -Id $process.Id
+          $data = Join-Path $env:APPDATA $name
+          $crashLog = Join-Path $data 'logs/crash.log'
+          if (Test-Path $crashLog) { Get-Content $crashLog; throw 'The app wrote a crash log.' }
+          $settings = Join-Path $data 'settings.json'
+          if (-not (Test-Path $settings)) { throw 'The app did not create settings.json.' }
+          Get-Content $settings
+
+      - name: Upload app
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.app.outputs.name }}-win-x64
+          path: artifacts/publish/win-x64/
+          retention-days: 14
+
+      - name: Upload UI snapshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-snapshots
+          path: artifacts/ui/
+          if-no-files-found: ignore
+          retention-days: 14
