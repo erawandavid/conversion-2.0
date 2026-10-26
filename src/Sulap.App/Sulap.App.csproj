@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>$(AppName)</AssemblyName>
+    <RootNamespace>Sulap.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!--
+      WPF0001: ThemeMode (WPF's built-in Fluent theme: Windows 11 controls, Mica, accent color, light/dark)
+      is still marked experimental in .NET 10. It's the only way to get that look without extra packages.
+    -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sulap.Core\Sulap.Core.csproj" />
+  </ItemGroup>
+
+</Project>
