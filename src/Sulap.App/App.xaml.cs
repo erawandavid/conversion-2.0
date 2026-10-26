@@ -23,16 +23,17 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        CrashLog.Install(this);
 
 #if DEBUG
-        if (Diagnostics.DebugCommands.TryRun(e.Args, out var exitCode))
+        if (Diagnostics.DebugCommands.IsDebugCommand(e.Args))
         {
-            Shutdown(exitCode);
+            CrashLog.Install(this, interactive: false);
+            Shutdown(Diagnostics.DebugCommands.Run(e.Args));
             return;
         }
 #endif
 
+        CrashLog.Install(this);
         _instance = SingleInstance.TryAcquire();
         if (_instance is null)
         {
@@ -69,6 +70,7 @@ public partial class App : Application
     [
         new("Settings…", ShowSettings),
         new("About", ShowAbout),
+        new("Drag detection log…", ShowDragSpike),
         TrayMenuItem.Separator,
         new("Start with Windows", ToggleAutoStart, IsChecked: AutoStart.IsEnabled),
         new("Pause", TogglePause, IsChecked: _paused),
@@ -79,6 +81,9 @@ public partial class App : Application
     private void ShowSettings() => ShowWindow(() => new SettingsWindow(_settingsStore.FilePath));
 
     private void ShowAbout() => ShowWindow(() => new AboutWindow());
+
+    /// <summary>Phase 1 spike: logs which drag signals work on this machine.</summary>
+    private void ShowDragSpike() => ShowWindow(() => new Spike.DragSpikeWindow(Settings.Triggers));
 
     /// <summary>Shows the open window of this type, or a new one, in front.</summary>
     private void ShowWindow<T>(Func<T> create)
