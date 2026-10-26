@@ -4,7 +4,8 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    # Phase branches are checked as soon as they're pushed, before anyone opens the PR.
+    branches: [main, 'phase-*']
   workflow_dispatch:
 
 permissions:
@@ -60,6 +61,15 @@ jobs:
             throw "Rendering failed with exit code $($process.ExitCode)"
           }
           Get-ChildItem $out | Format-Table Name, Length
+
+      - name: Drag detection smoke test
+        timeout-minutes: 5
+        run: |
+          $out = Join-Path $PWD 'artifacts/spike'
+          $process = Start-Process -FilePath '${{ steps.app.outputs.debug-exe }}' -ArgumentList '--spike-smoke', $out -PassThru -Wait
+          Get-Content (Join-Path $out 'drag-spike.log') -ErrorAction SilentlyContinue
+          Get-Content (Join-Path $out 'spike-error.txt') -ErrorAction SilentlyContinue
+          if ($process.ExitCode -ne 0) { throw "The drag detection smoke test failed with exit code $($process.ExitCode)" }
 
       - name: Publish (win-x64, self-contained single file)
         run: >
