@@ -1,0 +1,29 @@
+#!/bin/sh
+# commit-msg hook: removes AI attribution lines from every commit message.
+#
+# Deleted lines (case-insensitive):
+#   - Co-Authored-By trailers that mention anthropic.com
+#   - Claude-Session trailers
+#   - "Generated with Claude Code" lines, including the "[Claude Code](...)" link form
+#
+# Enable it once per clone:  git config core.hooksPath .githooks
+# Never bypass it with --no-verify.
+
+msg_file="$1"
+tmp_file="$msg_file.tmp"
+
+grep -v -i -E \
+  -e '^[[:space:]]*co-authored-by:.*anthropic\.com' \
+  -e '^[[:space:]]*claude-session:' \
+  -e 'generated with \[?claude code' \
+  "$msg_file" > "$tmp_file"
+
+# grep exits with 1 when it removed every line (git then aborts on the empty message)
+# and with 2 on a real error. Abort rather than let an unfiltered message through.
+if [ $? -gt 1 ]; then
+  rm -f "$tmp_file"
+  echo "commit-msg: could not filter the commit message" >&2
+  exit 1
+fi
+
+mv "$tmp_file" "$msg_file"

@@ -1,0 +1,25 @@
+# Store text files with LF in the repository; Git picks the native line ending on checkout.
+* text=auto
+
+# Git hooks are shell scripts: CRLF breaks them on Windows, so they always use LF.
+.githooks/* text eol=lf
+*.sh text eol=lf
+
+# Visual Studio expects CRLF in classic solution files.
+*.sln text eol=crlf
+
+# Binary assets and test fixtures
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.heic binary
+*.avif binary
+*.tif binary
+*.tiff binary
+*.bmp binary
+*.ico binary
+*.pdf binary
+*.docx binary
+*.zip binary
