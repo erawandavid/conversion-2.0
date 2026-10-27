@@ -1,0 +1,63 @@
+<Window x:Class="Sulap.App.Spike.DragSpikeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        ThemeMode="System"
+        Width="820"
+        Height="720"
+        MinWidth="600"
+        MinHeight="480"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Segoe UI Variable Text, Segoe UI">
+  <Grid Margin="24,20,24,20">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <TextBlock Grid.Row="0" FontFamily="Segoe UI Variable Display, Segoe UI" FontSize="22" FontWeight="SemiBold" Text="Drag detection log" />
+    <TextBlock Grid.Row="1" Margin="0,6,0,0" TextWrapping="Wrap"
+               Text="This window records what Windows reports while you drag. Nothing happens to your files: a drop on the blue circle is ignored. Work through the scenarios, then copy the log." />
+
+    <Border Grid.Row="2" Margin="0,16,0,0" Padding="16,12" CornerRadius="8" Background="#14808080">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel>
+          <TextBlock x:Name="ScenarioTitle" FontWeight="SemiBold" TextWrapping="Wrap" />
+          <TextBlock x:Name="ScenarioSteps" Margin="0,4,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Top" Orientation="Horizontal">
+          <Button x:Name="BackButton" MinWidth="72" Content="Back" Click="OnBackClick" />
+          <Button x:Name="NextButton" Margin="8,0,0,0" MinWidth="96" Click="OnNextClick" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <WrapPanel Grid.Row="3" Margin="0,12,0,0">
+      <CheckBox x:Name="TintOption" Margin="0,0,20,4" Content="Show the sensor as a blue circle" IsChecked="True" Click="OnOptionClick" />
+      <CheckBox x:Name="ZOrderOption" Margin="0,0,20,4" Content="Keep the drag image above the sensor" IsChecked="True" Click="OnOptionClick" />
+      <CheckBox x:Name="NudgeOption" Margin="0,0,20,4" Content="Nudge the mouse after showing the sensor" IsChecked="True" Click="OnOptionClick" />
+    </WrapPanel>
+
+    <TextBox x:Name="LogBox" Grid.Row="4" Margin="0,8,0,0" IsReadOnly="True" FontFamily="Cascadia Mono, Consolas" FontSize="12"
+             TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" />
+
+    <Grid Grid.Row="5" Margin="0,12,0,0">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <TextBlock x:Name="StatusText" VerticalAlignment="Center" Opacity="0.7" TextTrimming="CharacterEllipsis" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal">
+        <Button MinWidth="88" Content="Open log folder" Click="OnOpenFolderClick" />
+        <Button Margin="8,0,0,0" MinWidth="88" Content="Copy log" Click="OnCopyClick" />
+      </StackPanel>
+    </Grid>
+  </Grid>
+</Window>

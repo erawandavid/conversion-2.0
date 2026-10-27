@@ -9,11 +9,17 @@ internal static class CrashLog
 {
     public static string FilePath => Path.Combine(AppIdentity.LogDirectory, "crash.log");
 
-    public static void Install(Application app)
+    /// <param name="interactive">False for unattended runs (debug commands in CI): exit right away instead of showing a dialog.</param>
+    public static void Install(Application app, bool interactive = true)
     {
         app.DispatcherUnhandledException += (_, e) =>
         {
             Write(e.Exception);
+            if (!interactive)
+            {
+                Environment.Exit(1);
+            }
+
             e.Handled = true;
             MessageBox.Show(
                 $"{AppIdentity.Name} ran into a problem and has to close.\n\nDetails were saved to:\n{FilePath}",

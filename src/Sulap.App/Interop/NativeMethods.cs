@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 namespace Sulap.App.Interop;
 
 /// <summary>Win32 declarations used by the app. Names follow the Windows SDK headers.</summary>
-internal static class NativeMethods
+internal static partial class NativeMethods
 {
     // Window messages
     public const int WM_NULL = 0x0000;
