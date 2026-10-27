@@ -103,11 +103,12 @@ Only my friend and I may show up as authors or contributors on GitHub — never 
 
 ### Notes for cloud sessions (agreed with the owner on 2026-10-26)
 
-- The people allowed to appear on GitHub: `erawandavid` (the owner, commits as `erawandavid <karmayour69@gmail.com>`) and `L3nvil` (the friend).
-- A fresh cloud container has the global git identity `Claude <noreply@anthropic.com>` and signs commits with the environment's SSH key. Never commit with that identity. In each new clone, show the owner the values, wait for their confirmation, then set them locally (no `--global`):
+- The people allowed to appear on GitHub: `erawandavid` (the owner) and `L3nvil` (the friend).
+- Never write anyone's email address into a repository file. Ask the owner which commit email to use.
+- A fresh cloud container has the global git identity `Claude <noreply@anthropic.com>` and signs commits with the environment's SSH key. Never commit with that identity. In each new clone, ask the owner for their commit email, show them the values, wait for their confirmation, then set them locally (no `--global`):
   ```
   git config user.name "erawandavid"
-  git config user.email "karmayour69@gmail.com"
+  git config user.email "<the email the owner gave you>"
   git config commit.gpgsign false
   git config core.hooksPath .githooks
   ```
