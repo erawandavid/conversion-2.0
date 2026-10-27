@@ -8,6 +8,7 @@ Guidance for Claude Code sessions in this repository. The product brief is [docs
 - Work phase by phase (docs/SPEC.md → Phases). After each phase: build, run tests, give the owner a short manual test checklist in Bahasa Indonesia, commit on the phase branch, push, open the PR, and wait for the owner's OK.
 - If a Windows API doesn't behave the way the spec assumes, say so and propose an alternative. Don't quietly change the design.
 - NuGet packages: only the pre-approved ones (Magick.NET Q8 AnyCPU, PdfPig, DocumentFormat.OpenXml, PDFsharp, xUnit). Ask before adding anything else.
+- The repository is public, so keep to ordinary steps: never rewrite history or force-push any branch, and never put personal information (such as email addresses) in repository files.
 
 ## Phase status
 
