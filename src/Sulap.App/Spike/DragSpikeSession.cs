@@ -13,8 +13,8 @@ namespace Sulap.App.Spike;
 /// <summary>
 /// Phase 1 spike: runs every drag signal at once and logs what each one sees, so the real
 /// detection (Phase 2) can be built on the signals that work on the owner's machine.
-/// Hook callbacks only update a few fields and queue log lines; anything touching windows runs
-/// on the UI thread.
+/// Hook callbacks only update a few fields and queue log lines; anything touching windows, and
+/// every decision about when a drag is over (<see cref="DragEndTracker"/>), runs on the UI thread.
 /// </summary>
 internal sealed class DragSpikeSession : IDisposable
 {
@@ -39,6 +39,8 @@ internal sealed class DragSpikeSession : IDisposable
     private int _classesSeenForPress = -1;
 
     // UI thread only.
+    private readonly DragEndTracker _endTracker = new();
+    private readonly DispatcherTimer _graceTimer;
     private long _sensorShownAt;
     private bool _sensorGotDragEnter;
     private int _dragOverCount;
@@ -50,6 +52,8 @@ internal sealed class DragSpikeSession : IDisposable
         _log = log;
         _ui = Dispatcher.CurrentDispatcher;
         _trigger = new WheelTrigger(triggerKeys);
+        _graceTimer = new DispatcherTimer(DispatcherPriority.Normal, _ui);
+        _graceTimer.Tick += OnGraceTimerTick;
         _sensor.DragEnter += OnSensorDragEnter;
         _sensor.DragOver += OnSensorDragOver;
         _sensor.DragLeave += OnSensorDragLeave;
@@ -105,7 +109,8 @@ internal sealed class DragSpikeSession : IDisposable
             _log.WriteRaw($"Key polling: {_keys.Polls:N0} polls, every {_keys.AverageInterval.TotalMilliseconds:0.0} ms on average, longest gap {_keys.LongestInterval.TotalMilliseconds:0.0} ms");
         }
 
-        _log.WriteRaw($"Drag image windows seen: {_stats.DragImagesSeen}");
+        _log.WriteRaw($"Drag image windows seen: {_stats.DragImagesSeen}, replaced {_stats.DragImageReplacements} times"
+            + (_stats.DragImageReplacements > 0 ? $" ({_stats.FastestReplacementMs:0} to {_stats.SlowestReplacementMs:0} ms after the old one was destroyed)" : string.Empty));
         _log.WriteRaw($"Sensor: shown {_stats.SensorShown} times, DragEnter {_stats.DragEnters} times"
             + (_stats.DragEnters > 0 ? $" ({_stats.FastestDragEnterMs:0} to {_stats.SlowestDragEnterMs:0} ms after showing)" : string.Empty)
             + $", no DragEnter {_stats.MissedDragEnters} times, drops {_stats.Drops}");
@@ -114,6 +119,7 @@ internal sealed class DragSpikeSession : IDisposable
 
     public void Dispose()
     {
+        _graceTimer.Stop();
         _mouse?.Dispose();
         _windows?.Dispose();
         _keys?.Dispose();
@@ -150,6 +156,7 @@ internal sealed class DragSpikeSession : IDisposable
                 _buttonDown = true;
                 _mouseDragging = false;
                 _log.Write(e.Timestamp, "mouse", $"{e.Button} button down at ({e.X},{e.Y}){injected}");
+                _ui.BeginInvoke(() => _endTracker.OnButtonPressed(ToTime(e.Timestamp)));
                 break;
             case MouseHookEventKind.DragStarted:
                 _mouseDragging = true;
@@ -159,7 +166,7 @@ internal sealed class DragSpikeSession : IDisposable
                 _buttonDown = false;
                 _mouseDragging = false;
                 _log.Write(e.Timestamp, "mouse", $"{e.Button} button up at ({e.X},{e.Y}){injected}");
-                EndDrag("the mouse button was released");
+                _ui.BeginInvoke(() => EndIfOver(_endTracker.OnButtonReleased(ToTime(e.Timestamp))));
                 break;
         }
     }
@@ -184,17 +191,7 @@ internal sealed class DragSpikeSession : IDisposable
         {
             var style = e.Kind == WindowEventKind.Destroyed ? string.Empty : $", {DescribeStyle(e.Handle)}";
             _log.Write(e.Timestamp, "window", $"{DragImageClass} {e.Kind.ToString().ToLowerInvariant()} (0x{e.Handle:X}, {_log.ProcessName(e.ProcessId)}{style})");
-            if (e.Kind == WindowEventKind.Shown)
-            {
-                _ui.BeginInvoke(() => _stats.DragImagesSeen++);
-            }
-            else if (e.Kind == WindowEventKind.Destroyed)
-            {
-                // Only destruction counts as the end: the log should show whether the shell merely
-                // hides its drag image along the way, for example over the sensor.
-                EndDrag($"the {DragImageClass} window was destroyed");
-            }
-
+            _ui.BeginInvoke(() => OnDragImageEvent(e.Kind, e.Handle, e.Timestamp));
             return;
         }
 
@@ -242,7 +239,7 @@ internal sealed class DragSpikeSession : IDisposable
 
         if (e.Key == PolledKey.Esc)
         {
-            EndDrag("Esc was pressed");
+            _ui.BeginInvoke(() => EndIfOver(_endTracker.OnEscape(ToTime(e.Timestamp))));
             return;
         }
 
@@ -289,13 +286,99 @@ internal sealed class DragSpikeSession : IDisposable
         return IntPtr.Zero;
     }
 
-    private void EndDrag(string reason) => _ui.BeginInvoke(() =>
-    {
-        _trigger.Reset();
-        HideSensor(reason);
-    });
+    private static TimeSpan ToTime(long timestamp) => Stopwatch.GetElapsedTime(0, timestamp);
+
+    private static bool IsAnyMouseButtonDown() =>
+        (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0 || (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
 
     // ---- UI thread ----
+
+    private void OnDragImageEvent(WindowEventKind kind, IntPtr handle, long timestamp)
+    {
+        var at = ToTime(timestamp);
+        TimeSpan? replacedAfter = null;
+        switch (kind)
+        {
+            case WindowEventKind.Created:
+                replacedAfter = _endTracker.OnDragImageCreated(handle, at);
+                break;
+            case WindowEventKind.Shown:
+                _stats.DragImagesSeen++;
+                replacedAfter = _endTracker.OnDragImageShown(handle, at);
+                break;
+            case WindowEventKind.Hidden:
+                _endTracker.OnDragImageHidden(handle);
+                break;
+            case WindowEventKind.Destroyed:
+                // Not the end yet: File Explorer replaces its drag image when the pointer moves onto
+                // another window, such as the sensor. The tracker decides after the grace period.
+                _endTracker.OnDragImageDestroyed(handle, at);
+                ScheduleGraceCheck();
+                break;
+        }
+
+        if (replacedAfter is { } delay)
+        {
+            var milliseconds = delay.TotalMilliseconds;
+            _stats.DragImageReplacements++;
+            _stats.FastestReplacementMs = _stats.DragImageReplacements == 1 ? milliseconds : Math.Min(_stats.FastestReplacementMs, milliseconds);
+            _stats.SlowestReplacementMs = Math.Max(_stats.SlowestReplacementMs, milliseconds);
+            _log.Write(timestamp, "window", $"drag image replaced after {milliseconds:0} ms");
+        }
+    }
+
+    private void ScheduleGraceCheck()
+    {
+        if (_endTracker.GraceCheckDue is not { } due)
+        {
+            return;
+        }
+
+        var wait = due - ToTime(Stopwatch.GetTimestamp());
+        _graceTimer.Stop();
+        _graceTimer.Interval = wait > TimeSpan.Zero ? wait : TimeSpan.FromMilliseconds(1);
+        _graceTimer.Start();
+    }
+
+    private void OnGraceTimerTick(object? sender, EventArgs e)
+    {
+        _graceTimer.Stop();
+        var reason = _endTracker.CheckGracePeriod(ToTime(Stopwatch.GetTimestamp()), IsAnyMouseButtonDown());
+        if (reason is not null)
+        {
+            EndIfOver(reason);
+        }
+        else if (_endTracker.GraceCheckDue is not null)
+        {
+            ScheduleGraceCheck(); // The timer fired a little early.
+        }
+        else if (_endTracker.IsActive)
+        {
+            var grace = _endTracker.GracePeriod.TotalMilliseconds;
+            _log.Write("decision", _endTracker.HasVisibleDragImage
+                ? $"{grace:0} ms after a {DragImageClass} was destroyed, one is visible again: the drag goes on"
+                : $"no {DragImageClass} for {grace:0} ms, but a mouse button is still down: the drag goes on");
+        }
+    }
+
+    private void EndIfOver(DragEndReason? reason)
+    {
+        if (reason is not { } ending)
+        {
+            return;
+        }
+
+        var description = ending switch
+        {
+            DragEndReason.MouseReleased => "the mouse button was released",
+            DragEndReason.Escape => "Esc was pressed",
+            _ => $"no {DragImageClass} for {_endTracker.GracePeriod.TotalMilliseconds:0} ms and no mouse button down",
+        };
+        _graceTimer.Stop();
+        _log.Write("decision", $"drag over: {description}");
+        _trigger.Reset();
+        HideSensor(description);
+    }
 
     private void OnTriggerKey(TriggerKey key, IntPtr dragImage, bool mouseDragging, long keyTimestamp)
     {
@@ -472,6 +555,9 @@ internal sealed class DragSpikeSession : IDisposable
     private struct SpikeStats
     {
         public int DragImagesSeen;
+        public int DragImageReplacements;
+        public double FastestReplacementMs;
+        public double SlowestReplacementMs;
         public int SensorShown;
         public int DragEnters;
         public int MissedDragEnters;
