@@ -4,7 +4,7 @@
     <!-- The product name lives here and nowhere else: code reads it through AppIdentity.Name. -->
     <AppName>Sulap</AppName>
     <Product>$(AppName)</Product>
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
     <Copyright>Copyright (c) 2026 erawandavid</Copyright>
   </PropertyGroup>
 
