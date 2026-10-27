@@ -484,6 +484,6 @@ $RECYCLE.BIN/
 # Claude Code: personal, machine-specific settings never go into the repository.
 .claude/settings.local.json
 
-# The assistant's instruction files stay on the local machine, never in this public repository.
+# Local notes; never committed.
 CLAUDE.md
 CLAUDE.local.md

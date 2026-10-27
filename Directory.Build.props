@@ -10,7 +10,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
-    <!-- Lets the Windows-only projects build on Linux too (cloud sessions). They only run on Windows. -->
+    <!-- Lets the Windows-only projects build on other systems too. They only run on Windows. -->
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>

@@ -3,7 +3,7 @@ namespace Sulap.App.Diagnostics;
 
 /// <summary>
 /// Command-line switches that only exist in Debug builds, for checks where nobody is looking at a
-/// screen (CI, cloud sessions):
+/// screen (CI):
 /// <list type="bullet">
 /// <item><c>--render-ui &lt;folder&gt;</c> renders the tray icon and the windows to PNG files.</item>
 /// <item><c>--spike-smoke &lt;folder&gt;</c> runs the drag detection log for a few seconds and saves its log.</item>
