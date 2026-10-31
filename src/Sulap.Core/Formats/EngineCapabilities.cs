@@ -2,6 +2,7 @@ using ImageMagick;
 using Microsoft.Win32;
 using Sulap.Core.Conversion;
 using Windows.Graphics.Imaging;
+using Windows.Storage.Streams;
 
 namespace Sulap.Core.Formats;
 
@@ -83,7 +84,16 @@ public sealed record EngineCapabilities
     {
         try
         {
-            return BitmapEncoder.GetEncoderInformationEnumerator().Any(info => info.CodecId == BitmapEncoder.HeifEncoderId);
+            if (!BitmapEncoder.GetEncoderInformationEnumerator().Any(info => info.CodecId == BitmapEncoder.HeifEncoderId))
+            {
+                return false;
+            }
+
+            // Being listed isn't enough: without an HEVC encoder (the HEVC extension) the HEIF encoder is
+            // still listed, but creating one fails with WINCODEC_ERR_COMPONENTINITIALIZEFAILURE (0x88982F8B).
+            using var probe = new InMemoryRandomAccessStream();
+            _ = ImageCodec.CreateWindowsHeifEncoderAsync(probe, new ConversionOptions().Quality, CancellationToken.None).GetAwaiter().GetResult();
+            return true;
         }
         catch (Exception ex) when (ex is TypeLoadException or System.Runtime.InteropServices.COMException or PlatformNotSupportedException)
         {

@@ -209,16 +209,22 @@ internal static class ImageCodec
         var (dpiX, dpiY) = Dpi(image);
 
         using var buffer = new InMemoryRandomAccessStream();
-        var settings = new BitmapPropertySet
-        {
-            ["ImageQuality"] = new BitmapTypedValue(Math.Clamp(quality, 1, 100) / 100f, PropertyType.Single),
-        };
-        var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.HeifEncoderId, buffer, settings).AsTask(cancellationToken);
+        var encoder = await CreateWindowsHeifEncoderAsync(buffer, quality, cancellationToken);
         encoder.SetPixelData(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore, image.Width, image.Height, dpiX, dpiY, pixels);
         await encoder.FlushAsync().AsTask(cancellationToken);
 
         buffer.Seek(0);
         await using var encoded = buffer.AsStreamForRead();
         await encoded.CopyToAsync(output, cancellationToken);
+    }
+
+    /// <summary>Windows' HEIF encoder, set up the way conversions use it. The capability check creates one too.</summary>
+    internal static Task<BitmapEncoder> CreateWindowsHeifEncoderAsync(IRandomAccessStream stream, int quality, CancellationToken cancellationToken)
+    {
+        var settings = new BitmapPropertySet
+        {
+            ["ImageQuality"] = new BitmapTypedValue(Math.Clamp(quality, 1, 100) / 100f, PropertyType.Single),
+        };
+        return BitmapEncoder.CreateAsync(BitmapEncoder.HeifEncoderId, stream, settings).AsTask(cancellationToken);
     }
 }
