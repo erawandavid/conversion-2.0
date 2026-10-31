@@ -102,8 +102,14 @@ public sealed class ConverterTests : IDisposable
         Assert.SkipUnless(Detected.Value.CanWrite(FileFormat.Heic), "No HEIC encoder on this machine.");
         var source = Fixtures.PhotoJpeg(_folder.File("Photo.jpg"));
 
-        var output = Assert.Single((await Convert(FileFormat.Heic, source)).Outputs);
+        var result = await Convert(FileFormat.Heic, source);
 
+        // Name the encoder that was used and say why it failed, not just that nothing came out.
+        Assert.True(
+            result.Failures.Count == 0,
+            $"Magick.NET writes HEIC: {Detected.Value.MagickWrites.Contains(FileFormat.Heic)}; Windows HEIF encoder: {Detected.Value.WindowsHeifEncoder}."
+            + string.Concat(result.Failures.Select(failure => $"{Environment.NewLine}{failure.Message}{Environment.NewLine}{failure.Detail}")));
+        var output = Assert.Single(result.Outputs);
         Assert.Equal(FileFormat.Heic, FileFormats.Detect(output.Path));
         using var image = new MagickImage(output.Path);
         Assert.Equal((80u, 120u), (image.Width, image.Height));
