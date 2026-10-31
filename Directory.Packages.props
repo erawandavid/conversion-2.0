@@ -2,11 +2,23 @@
 
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Lets the versions below also lift dependencies of dependencies (see the Pkcs entry). -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
   <!-- Only pre-approved packages (see docs/SPEC.md); ask the owner before adding another. -->
   <ItemGroup>
+    <PackageVersion Include="DocumentFormat.OpenXml" Version="3.5.1" />
+    <PackageVersion Include="Magick.NET-Q8-AnyCPU" Version="15.0.0" />
+    <PackageVersion Include="PdfPig" Version="0.1.16" />
+    <!-- Stay on 6.2.x: 6.2.4 is the last MIT release. From 6.5.0 PDFsharp is AGPL-3.0 (or commercial), which this MIT app can't use. -->
+    <PackageVersion Include="PDFsharp" Version="6.2.4" />
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
+  </ItemGroup>
+
+  <!-- Not a new dependency: PDFsharp brings in 8.0.1, which has published advisories (GHSA-846f-f764-76mx). -->
+  <ItemGroup>
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
   </ItemGroup>
 
 </Project>

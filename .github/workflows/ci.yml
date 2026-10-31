@@ -39,17 +39,25 @@ jobs:
       - name: Read the app name
         id: app
         run: |
-          function Get-Property($name) { (dotnet msbuild src/Sulap.App/Sulap.App.csproj "-getProperty:$name" | Select-Object -Last 1).Trim() }
-          $name = Get-Property AppName
-          $debugDir = Get-Property TargetDir
+          function Get-Property($project, $name) { (dotnet msbuild $project "-getProperty:$name" | Select-Object -Last 1).Trim() }
+          $name = Get-Property 'src/Sulap.App/Sulap.App.csproj' AppName
+          $debugDir = Get-Property 'src/Sulap.App/Sulap.App.csproj' TargetDir
+          $testsProject = 'tests/Sulap.Core.Tests/Sulap.Core.Tests.csproj'
+          $testsExe = Join-Path (Get-Property $testsProject TargetDir) "$((Get-Property $testsProject AssemblyName)).exe"
           "name=$name" >> $env:GITHUB_OUTPUT
           "debug-exe=$(Join-Path $debugDir "$name.exe")" >> $env:GITHUB_OUTPUT
+          "tests-exe=$testsExe" >> $env:GITHUB_OUTPUT
 
       - name: Build
         run: dotnet build Sulap.slnx
 
       - name: Test
-        run: dotnet test --no-build
+        # xunit.v3 ships its own runner (Microsoft.Testing.Platform); .NET 10's `dotnet test` drives the
+        # retired VSTest path and errors out, so run the built test executable instead. Office/OCR tests
+        # that need Word, PowerPoint, Excel, or an OCR language skip themselves on a runner without them.
+        run: |
+          & '${{ steps.app.outputs.tests-exe }}'
+          if ($LASTEXITCODE -ne 0) { throw "Tests failed with exit code $LASTEXITCODE" }
 
       - name: Render UI snapshots
         timeout-minutes: 5
@@ -70,6 +78,14 @@ jobs:
           Get-Content (Join-Path $out 'drag-spike.log') -ErrorAction SilentlyContinue
           Get-Content (Join-Path $out 'spike-error.txt') -ErrorAction SilentlyContinue
           if ($process.ExitCode -ne 0) { throw "The drag detection smoke test failed with exit code $($process.ExitCode)" }
+
+      - name: Drop test (wheel and conversions)
+        timeout-minutes: 5
+        run: |
+          $out = Join-Path $PWD 'artifacts/drop'
+          $process = Start-Process -FilePath '${{ steps.app.outputs.debug-exe }}' -ArgumentList '--drop-test', $out -PassThru -Wait
+          Get-Content (Join-Path $out 'drop-test.log') -ErrorAction SilentlyContinue
+          if ($process.ExitCode -ne 0) { throw "The drop test failed with exit code $($process.ExitCode)" }
 
       - name: Publish (win-x64, self-contained single file)
         run: >

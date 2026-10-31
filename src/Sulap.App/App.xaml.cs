@@ -2,20 +2,24 @@ using System.IO;
 using System.Security;
 using System.Windows;
 using Sulap.App.Interop;
+using Sulap.App.Jobs;
 using Sulap.App.Platform;
 using Sulap.App.Tray;
 using Sulap.App.Views;
+using Sulap.App.Wheel;
 using Sulap.Core;
 using Sulap.Core.Settings;
 
 namespace Sulap.App;
 
-/// <summary>A tray app: no main window, just the notification-area icon and the windows it opens.</summary>
+/// <summary>A tray app: no main window, just the notification-area icon, the wheel, and the windows they open.</summary>
 public partial class App : Application
 {
     private readonly SettingsStore _settingsStore = SettingsStore.ForCurrentUser();
     private SingleInstance? _instance;
     private TrayIcon? _tray;
+    private ConversionJobs? _jobs;
+    private WheelController? _wheel;
     private bool _paused;
 
     internal AppSettings Settings { get; private set; } = new();
@@ -47,6 +51,11 @@ public partial class App : Application
         DarkMode.FollowAppsTheme();
         _tray = new TrayIcon(BuildMenu);
 
+        var engine = new ConversionEngine();
+        _jobs = new ConversionJobs(engine);
+        _wheel = new WheelController(Settings.Triggers, engine, _jobs);
+        UpdateDragDetection();
+
         if (ProcessInfo.IsElevated)
         {
             MessageBox.Show(
@@ -61,6 +70,9 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _wheel?.Dispose();
+        // Running conversions get a moment to remove their temporary files and close the Word they started.
+        _jobs?.CancelAll(TimeSpan.FromSeconds(5));
         _tray?.Dispose();
         _instance?.Dispose();
         base.OnExit(e);
@@ -83,7 +95,30 @@ public partial class App : Application
     private void ShowAbout() => ShowWindow(() => new AboutWindow());
 
     /// <summary>Phase 1 spike: logs which drag signals work on this machine.</summary>
-    private void ShowDragSpike() => ShowWindow(() => new Spike.DragSpikeWindow(Settings.Triggers));
+    private void ShowDragSpike()
+    {
+        // The log window runs its own hooks and sensor; the wheel waits until it's closed.
+        _wheel?.Stop();
+        ShowWindow(() =>
+        {
+            var window = new Spike.DragSpikeWindow(Settings.Triggers);
+            window.Closed += (_, _) => Dispatcher.BeginInvoke(UpdateDragDetection);
+            return window;
+        });
+    }
+
+    /// <summary>The wheel listens for drags unless it's paused or the drag detection log is open.</summary>
+    private void UpdateDragDetection()
+    {
+        if (_paused || Windows.OfType<Spike.DragSpikeWindow>().Any())
+        {
+            _wheel?.Stop();
+        }
+        else
+        {
+            _wheel?.Start();
+        }
+    }
 
     /// <summary>Shows the open window of this type, or a new one, in front.</summary>
     private void ShowWindow<T>(Func<T> create)
@@ -102,6 +137,7 @@ public partial class App : Application
     private void TogglePause()
     {
         _paused = !_paused;
+        UpdateDragDetection();
         _tray?.Update(_paused ? $"{AppIdentity.Name} (paused)" : AppIdentity.Name, dimmed: _paused);
     }
 

@@ -32,14 +32,21 @@ internal sealed class KeyStatePoller : IDisposable
     ];
 
     private readonly Thread _thread;
+    private readonly ManualResetEventSlim _wake = new(initialState: true);
+    private readonly bool _onlyWhileButtonDown;
     private volatile bool _stopping;
     private long _polls;
     private long _longestGapTicks;
     private long _firstPoll;
     private long _lastPoll;
 
-    public KeyStatePoller()
+    /// <param name="onlyWhileButtonDown">
+    /// Sleep while no mouse button is down, until <see cref="Wake"/>. Keys only matter during a drag,
+    /// and polling all day would wake the CPU about 60 times a second for nothing.
+    /// </param>
+    public KeyStatePoller(bool onlyWhileButtonDown = false)
     {
+        _onlyWhileButtonDown = onlyWhileButtonDown;
         _thread = new Thread(Run) { Name = "Key polling", IsBackground = true, Priority = ThreadPriority.AboveNormal };
         _thread.Start();
     }
@@ -62,13 +69,19 @@ internal sealed class KeyStatePoller : IDisposable
 
     public TimeSpan LongestInterval => TimeSpan.FromSeconds(Volatile.Read(ref _longestGapTicks) / (double)Stopwatch.Frequency);
 
+    /// <summary>Starts polling again after a pause. Cheap enough to call from a mouse hook.</summary>
+    public void Wake() => _wake.Set();
+
     public void Dispose()
     {
         _stopping = true;
+        _wake.Set();
         _thread.Join(TimeSpan.FromSeconds(1));
     }
 
     private static bool IsDown(int virtualKey) => (GetAsyncKeyState(virtualKey) & 0x8000) != 0;
+
+    private static bool IsAnyButtonDown() => IsDown(VK_LBUTTON) || IsDown(VK_RBUTTON);
 
     private void Run()
     {
@@ -95,6 +108,21 @@ internal sealed class KeyStatePoller : IDisposable
             }
 
             Thread.Sleep(15);
+            if (_onlyWhileButtonDown && !IsAnyButtonDown())
+            {
+                _wake.Reset();
+                // Checked again after the reset: a press in between either shows here or sets the event.
+                if (!IsAnyButtonDown())
+                {
+                    _wake.Wait();
+                }
+
+                // Start from the keys as they are now: what changed while asleep belongs to no drag.
+                for (var i = 0; i < Keys.Length; i++)
+                {
+                    down[i] = IsDown(Keys[i].VirtualKey);
+                }
+            }
         }
     }
 
