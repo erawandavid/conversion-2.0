@@ -1,3 +1,3 @@
 using Sulap.Cli;
 
-return CommandLine.Run(args, Console.Out, Console.Error);
+return await CommandLine.RunAsync(args, Console.Out, Console.Error);

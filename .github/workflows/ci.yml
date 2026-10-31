@@ -71,6 +71,14 @@ jobs:
           Get-Content (Join-Path $out 'spike-error.txt') -ErrorAction SilentlyContinue
           if ($process.ExitCode -ne 0) { throw "The drag detection smoke test failed with exit code $($process.ExitCode)" }
 
+      - name: Drop test (wheel and conversions)
+        timeout-minutes: 5
+        run: |
+          $out = Join-Path $PWD 'artifacts/drop'
+          $process = Start-Process -FilePath '${{ steps.app.outputs.debug-exe }}' -ArgumentList '--drop-test', $out -PassThru -Wait
+          Get-Content (Join-Path $out 'drop-test.log') -ErrorAction SilentlyContinue
+          if ($process.ExitCode -ne 0) { throw "The drop test failed with exit code $($process.ExitCode)" }
+
       - name: Publish (win-x64, self-contained single file)
         run: >
           dotnet publish src/Sulap.App/Sulap.App.csproj -c Release -r win-x64 --self-contained

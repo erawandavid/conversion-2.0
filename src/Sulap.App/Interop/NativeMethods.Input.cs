@@ -61,6 +61,11 @@ internal static partial class NativeMethods
     public const int SM_CYDRAG = 69;
     public const uint SPI_GETCLIENTAREAANIMATION = 0x1042;
 
+    // SHQueryUserNotificationState
+    public const int QUNS_BUSY = 2;
+    public const int QUNS_RUNNING_D3D_FULL_SCREEN = 3;
+    public const int QUNS_PRESENTATION_MODE = 4;
+
     public delegate IntPtr LowLevelHookProc(int nCode, IntPtr wParam, IntPtr lParam);
 
     public delegate void WinEventProc(
@@ -237,4 +242,8 @@ internal static partial class NativeMethods
     [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool SystemParametersInfo(uint uiAction, uint uiParam, out int pvParam, uint fWinIni);
+
+    /// <summary>Whether a full-screen app, a game, or presentation mode is in front (QUNS_*).</summary>
+    [DllImport("shell32.dll")]
+    public static extern int SHQueryUserNotificationState(out int pquns);
 }
